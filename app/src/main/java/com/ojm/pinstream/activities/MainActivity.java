@@ -63,13 +63,7 @@ public class MainActivity extends AppCompatActivity {
                         bookmark.getUrl()
                 );
 
-                s.setAction(StreamingService.ACTION_CMD);
-
-                s.putExtra(
-                        StreamingService.CMD_NAME,
-                        StreamingService.CMD_PLAY
-                );
-
+                s.setAction(StreamingService.ACTION_PLAY);
                 startService(s);
 
                 Intent i = new Intent(getApplicationContext(), PlayActivity.class);
