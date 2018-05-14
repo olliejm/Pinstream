@@ -5,7 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.TextView;
+import android.widget.CheckedTextView;
 
 import com.ojm.pinstream.models.Bookmark;
 import com.ojm.pinstream.R;
@@ -49,7 +49,7 @@ public class BookmarkAdapter extends BaseAdapter {
             );
         }
 
-        ((TextView) convertView.findViewById(R.id.bookmark_list_title))
+        ((CheckedTextView) convertView.findViewById(R.id.bookmark_list_item))
                 .setText(((Bookmark) getItem(position)).getTitle());
 
         return convertView;

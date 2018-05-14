@@ -12,6 +12,7 @@ import java.util.ArrayList;
 
 public class DatabaseHandler extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 1;
+
     private static final String DATABASE_NAME = "bookmarksManager";
     private static final String TABLE_BOOKMARKS = "bookmarks";
     private static final String KEY_ID = "id";

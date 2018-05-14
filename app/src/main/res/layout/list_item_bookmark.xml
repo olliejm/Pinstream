@@ -5,14 +5,14 @@
     android:orientation="horizontal">
 
     <CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/bookmark_list_title"
+        android:id="@+id/bookmark_list_item"
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:checkMark="?android:attr/listChoiceIndicatorSingle"
         android:gravity="center_vertical"
         android:paddingLeft="16dip"
         android:paddingRight="16dip"
-        android:text="@string/list_item_name"
+        android:text="@string/list_item_title"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
 </LinearLayout>

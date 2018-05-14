@@ -3,36 +3,43 @@ package com.ojm.pinstream.services;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
-import android.os.IBinder;
-import android.os.PowerManager;
-import android.os.RemoteException;
+import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaBrowserServiceCompat;
 import android.support.v4.media.session.MediaButtonReceiver;
-import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.text.TextUtils;
 
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.trackselection.TrackSelector;
+import com.google.android.exoplayer2.upstream.BandwidthMeter;
+import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.ojm.pinstream.R;
 
-import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 
-public class StreamingService extends Service
-        implements MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener {
-
-    public static final String NOTIFICATION_CHANNEL = "1337";
-    public static final int NOTIFICATION_ID = 1338;
+public class StreamingService extends MediaBrowserServiceCompat {
 
     public static final String STREAM_URI = "STREAM_URI";
     public static final String STREAM_TITLE = "STREAM_TITLE";
@@ -45,11 +52,20 @@ public class StreamingService extends Service
     private static final int AUDIO_NO_FOCUS_CAN_DUCK= 1;
     private static final int AUDIO_FOCUSED = 2;
 
-    private MediaPlayer mMediaPlayer;
-    private MediaSessionCompat mMediaSession;
-    private MediaControllerCompat mMediaController;
+    private static final String EMPTY_MEDIA_ROOT_ID = "/pinstream";
 
-    private Intent mOnStartCommandIntent;
+    private static final String NOTIFICATION_CHANNEL = "1337";
+    private static final int NOTIFICATION_ID = 1338;
+
+    private AudioManager mAudioManager;
+    private MediaSessionCompat mMediaSession;
+    private PlaybackStateCompat.Builder mPlaybackStateBuilder;
+    private SimpleExoPlayer mExoPlayer;
+    private WifiManager.WifiLock mWifiLock;
+
+    private String mStreamTitle;
+
+    private boolean mServiceInStartedState = false;
 
     private AudioManager.OnAudioFocusChangeListener mOnAudioFocusChangeListener =
             new AudioManager.OnAudioFocusChangeListener() {
@@ -68,13 +84,9 @@ public class StreamingService extends Service
                         case AudioManager.AUDIOFOCUS_LOSS:
                             mCurrentAudioFocusState = AUDIO_NO_FOCUS_LOST;
                             break;
-                    }
-
-                    if (mMediaPlayer != null) configurePlayerState();
+                    } if (mExoPlayer != null) configurePlayerState();
                 }
             };
-
-    private int mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
 
     private final IntentFilter mAudioNoisyIntentFilter =
             new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
@@ -82,157 +94,214 @@ public class StreamingService extends Service
     private BroadcastReceiver mAudioNoisyReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            mMediaController.getTransportControls().pause();
+            mMediaSession.getController().getTransportControls().pause();
         }
     };
 
     private boolean mAudioNoisyReceiverRegistered = false;
 
+    private int mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
+
     @Nullable
     @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+    public BrowserRoot onGetRoot
+            (@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+        return new BrowserRoot(EMPTY_MEDIA_ROOT_ID, null);
+    }
+
+    @Override
+    public void onLoadChildren
+            (@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+        if (TextUtils.equals(EMPTY_MEDIA_ROOT_ID, parentId)) result.sendResult(null);
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        AudioManager mAudioManager = (AudioManager)
-                getSystemService(Context.AUDIO_SERVICE);
+        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-        assert mAudioManager != null;
-        int result = mAudioManager.requestAudioFocus(
-                mOnAudioFocusChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-        );
+        BandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
 
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            init();
-        } else {
-            stopSelf();
-        }
+        TrackSelection.Factory trackSelectionFactory =
+                new AdaptiveTrackSelection.Factory(bandwidthMeter);
+
+        TrackSelector trackSelector =
+                new DefaultTrackSelector(trackSelectionFactory);
+
+        mExoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector);
+
+        mMediaSession = new MediaSessionCompat(this, "Pinstream");
+        mMediaSession.setCallback(new MediaSessionCallback());
+
+        mMediaSession.setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
+                        | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+
+        mPlaybackStateBuilder = new PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0)
+                .setActions(
+                        PlaybackStateCompat.ACTION_PREPARE_FROM_URI |
+                                PlaybackStateCompat.ACTION_PLAY_PAUSE |
+                                PlaybackStateCompat.ACTION_PLAY |
+                                PlaybackStateCompat.ACTION_PAUSE |
+                                PlaybackStateCompat.ACTION_STOP);
+
+        mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+        setSessionToken(mMediaSession.getSessionToken());
+
+        mWifiLock =
+                ((WifiManager) Objects.requireNonNull(
+                        this.getSystemService(Context.WIFI_SERVICE)))
+                        .createWifiLock(WifiManager.WIFI_MODE_FULL, "ps_wifi_lock");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        try {
-            mMediaPlayer.setDataSource(intent.getStringExtra(STREAM_URI));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        mMediaPlayer.prepareAsync();
-        mOnStartCommandIntent = intent;
-
+        MediaButtonReceiver.handleIntent(mMediaSession, intent);
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mMediaPlayer.release();
+        mExoPlayer.release();
         mMediaSession.release();
-    }
-
-    @Override
-    public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
-        mMediaPlayer.reset();
-        return true;
-    }
-
-    @Override
-    public void onPrepared(MediaPlayer mediaPlayer) {
-        MediaButtonReceiver.handleIntent(mMediaSession, mOnStartCommandIntent);
+        unregisterAudioNoisyReceiver();
     }
 
     public class MediaSessionCallback extends MediaSessionCompat.Callback {
         @Override
         public void onPlay() {
-            registerAudioNoisyReceiver();
-            mMediaPlayer.start();
-            startForeground(
-                    NOTIFICATION_ID, buildNotification(PlaybackStateCompat.ACTION_PAUSE));
+            switch (mAudioManager.requestAudioFocus(
+                    mOnAudioFocusChangeListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+            )) {
+                case AudioManager.AUDIOFOCUS_REQUEST_GRANTED:
+                    mCurrentAudioFocusState = AUDIO_FOCUSED;
+                    registerAudioNoisyReceiver();
+
+                    mWifiLock.acquire();
+                    mExoPlayer.setPlayWhenReady(true);
+
+                    mPlaybackStateBuilder
+                            .setState(
+                                    PlaybackStateCompat.STATE_PLAYING,
+                                    0,
+                                    0
+                            );
+
+                    mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+                    mMediaSession.setActive(true);
+
+                    configureServiceState(PlaybackStateCompat.STATE_PLAYING);
+                    break;
+                default:
+                    configureServiceState(PlaybackStateCompat.STATE_STOPPED);
+                    break;
+            }
         }
 
         @Override
         public void onPause() {
             unregisterAudioNoisyReceiver();
-            mMediaPlayer.pause();
-            startForeground(
-                    NOTIFICATION_ID, buildNotification(PlaybackStateCompat.ACTION_PLAY));
+            mWifiLock.release();
+
+            mExoPlayer.setPlayWhenReady(false);
+
+            mPlaybackStateBuilder
+                    .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0);
+
+            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+
+            configureServiceState(PlaybackStateCompat.STATE_PAUSED);
         }
 
         @Override
         public void onStop() {
             unregisterAudioNoisyReceiver();
-            mMediaPlayer.stop();
+
+            if (mWifiLock.isHeld()) mWifiLock.release();
+
+            mExoPlayer.stop();
+
+            mPlaybackStateBuilder.setState(
+                    PlaybackStateCompat.STATE_STOPPED, 0,0);
+
+            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
             mMediaSession.setActive(false);
-            stopSelf();
-        }
-    }
 
-    private void init() {
-        mCurrentAudioFocusState = AUDIO_FOCUSED;
-        registerAudioNoisyReceiver();
-
-        mMediaSession = new MediaSessionCompat(getApplicationContext(), "Pinstream");
-        mMediaSession.setCallback(new MediaSessionCallback());
-        mMediaSession.setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS);
-        mMediaSession.setActive(true);
-
-        try {
-            mMediaController = new MediaControllerCompat(
-                    getApplicationContext(), mMediaSession.getSessionToken());
-        } catch (RemoteException e) {
-            e.printStackTrace();
+            configureServiceState(PlaybackStateCompat.STATE_STOPPED);
         }
 
-        mMediaPlayer = new MediaPlayer();
-        mMediaPlayer.setOnPreparedListener(this);
-        mMediaPlayer.setOnErrorListener(this);
-        mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        mMediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+        @Override
+        public void onPrepareFromUri(Uri uri, Bundle extras) {
+            MediaSource mediaSource = new ExtractorMediaSource.Factory(
+                    new DefaultHttpDataSourceFactory("Pinstream"))
+                    .createMediaSource(uri);
 
-        WifiManager.WifiLock wifiLock =
-                ((WifiManager) Objects.requireNonNull(
-                        getApplicationContext().getSystemService(Context.WIFI_SERVICE)))
-                        .createWifiLock(WifiManager.WIFI_MODE_FULL, "ps_wifi_lock");
-        wifiLock.acquire();
+            mStreamTitle = extras.getString(STREAM_TITLE);
+            mExoPlayer.prepare(mediaSource);
+        }
     }
 
     private void configurePlayerState() {
         switch (mCurrentAudioFocusState) {
             case AUDIO_NO_FOCUS_CAN_DUCK:
-                mMediaPlayer.setVolume(VOLUME_DUCK, VOLUME_DUCK);
+                mExoPlayer.setVolume(VOLUME_DUCK);
                 break;
             case AUDIO_NO_FOCUS_NO_DUCK:
-                mMediaController.getTransportControls().pause();
+                mMediaSession.getController().getTransportControls().pause();
                 break;
             case AUDIO_NO_FOCUS_LOST:
-                mMediaController.getTransportControls().stop();
+                mMediaSession.getController().getTransportControls().stop();
                 break;
             case AUDIO_FOCUSED:
-                mMediaPlayer.setVolume(VOLUME_NORMAL, VOLUME_NORMAL);
+                mExoPlayer.setVolume(VOLUME_NORMAL);
                 break;
         }
     }
 
     private void registerAudioNoisyReceiver() {
         if (!mAudioNoisyReceiverRegistered) {
-            getApplicationContext()
-                    .registerReceiver(mAudioNoisyReceiver, mAudioNoisyIntentFilter);
+            this.registerReceiver(mAudioNoisyReceiver, mAudioNoisyIntentFilter);
             mAudioNoisyReceiverRegistered = true;
         }
     }
 
     private void unregisterAudioNoisyReceiver() {
         if (mAudioNoisyReceiverRegistered) {
-            getApplicationContext()
-                    .unregisterReceiver(mAudioNoisyReceiver);
+            this.unregisterReceiver(mAudioNoisyReceiver);
             mAudioNoisyReceiverRegistered = false;
+        }
+    }
+
+    private void configureServiceState(long action) {
+        if (action == PlaybackStateCompat.STATE_PLAYING) {
+            if (!mServiceInStartedState) {
+                ContextCompat.startForegroundService(
+                        StreamingService.this,
+                        new Intent(
+                                StreamingService.this,
+                                StreamingService.class));
+                mServiceInStartedState = true;
+            } startForeground(NOTIFICATION_ID,
+                    buildNotification(PlaybackStateCompat.ACTION_PAUSE));
+        } else if (action == PlaybackStateCompat.STATE_PAUSED) {
+            stopForeground(false);
+
+            NotificationManager mNotificationManager
+                    = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+            assert mNotificationManager != null;
+            mNotificationManager
+                    .notify(NOTIFICATION_ID,
+                            buildNotification(PlaybackStateCompat.ACTION_PLAY));
+        } else if (action == PlaybackStateCompat.STATE_STOPPED) {
+            mServiceInStartedState = false;
+            stopForeground(true);
+            stopSelf();
         }
     }
 
@@ -240,25 +309,24 @@ public class StreamingService extends Service
         createNotificationChannel();
 
         NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL);
+                new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL);
 
         builder
-                .setContentTitle(mOnStartCommandIntent.getStringExtra(STREAM_TITLE))
-                .setContentIntent(mMediaController.getSessionActivity())
+                .setContentTitle(mStreamTitle)
+                .setContentIntent(mMediaSession.getController().getSessionActivity())
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setDeleteIntent(
                         MediaButtonReceiver.buildMediaButtonPendingIntent(
                                 this, PlaybackStateCompat.ACTION_STOP));
 
         builder
-                .setSmallIcon(android.R.drawable.ic_media_play)
-                .setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
+                .setSmallIcon(R.drawable.ic_play_arrow_white_24px);
 
 
         if (action == PlaybackStateCompat.ACTION_PLAY) {
             builder
                     .addAction(new NotificationCompat.Action(
-                            android.R.drawable.ic_media_play, getString(R.string.play),
+                            R.drawable.ic_play_arrow_black_24px, getString(R.string.play),
                             MediaButtonReceiver.buildMediaButtonPendingIntent(
                                     this, PlaybackStateCompat.ACTION_PLAY)));
         }
@@ -266,7 +334,7 @@ public class StreamingService extends Service
         if (action == PlaybackStateCompat.ACTION_PAUSE) {
             builder
                     .addAction(new NotificationCompat.Action(
-                            android.R.drawable.ic_media_pause, getString(R.string.pause),
+                            R.drawable.ic_pause_black_24px, getString(R.string.pause),
                             MediaButtonReceiver.buildMediaButtonPendingIntent(
                                     this, PlaybackStateCompat.ACTION_PAUSE)));
         }
@@ -275,6 +343,7 @@ public class StreamingService extends Service
                 .setStyle(new android.support.v4.media.app.NotificationCompat.MediaStyle()
                         .setShowActionsInCompactView(0)
                         .setShowCancelButton(true)
+                        .setMediaSession(mMediaSession.getSessionToken())
                         .setCancelButtonIntent(
                                 MediaButtonReceiver.buildMediaButtonPendingIntent(
                                         this, PlaybackStateCompat.ACTION_STOP)));
@@ -287,11 +356,14 @@ public class StreamingService extends Service
             CharSequence name = getString(R.string.channel_name);
             String description = getString(R.string.channel_description);
             int importance = NotificationManager.IMPORTANCE_DEFAULT;
+
             NotificationChannel channel =
-                    new NotificationChannel("1337", name, importance);
+                    new NotificationChannel(NOTIFICATION_CHANNEL, name, importance);
+
             channel.setDescription(description);
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
+
             assert notificationManager != null;
             notificationManager.createNotificationChannel(channel);
         }

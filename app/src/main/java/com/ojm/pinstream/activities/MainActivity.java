@@ -7,7 +7,6 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.AppCompatDelegate;
 import android.support.v7.widget.Toolbar;
-import android.view.KeyEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -53,22 +52,18 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Bookmark bookmark = (Bookmark) adapter.getItem(position);
 
-                Intent s = new Intent(getApplicationContext(), StreamingService.class);
-                s.putExtra(
+                Intent i = new Intent(getApplicationContext(), PlayActivity.class);
+
+                i.putExtra(
                         StreamingService.STREAM_TITLE,
                         bookmark.getTitle()
                 );
 
-                s.putExtra(
+                i.putExtra(
                         StreamingService.STREAM_URI,
                         bookmark.getUrl()
                 );
 
-                s.setAction(Intent.ACTION_MEDIA_BUTTON);
-                s.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent.KEYCODE_MEDIA_PLAY);
-                startService(s);
-
-                Intent i = new Intent(getApplicationContext(), PlayActivity.class);
                 startActivity(i);
             }
         });
