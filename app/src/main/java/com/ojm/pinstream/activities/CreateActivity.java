@@ -22,19 +22,45 @@ public class CreateActivity extends AppCompatActivity {
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
 
+        if (getIntent().hasExtra(Bookmark.PARCEL)) {
+            Bookmark bookmark = getIntent().getParcelableExtra(Bookmark.PARCEL);
+            EditText title = findViewById(R.id.bookmark_add_title);
+            EditText url = findViewById(R.id.bookmark_add_url);
+
+            title.setText(bookmark.getTitle());
+            url.setText(bookmark.getUrl());
+        }
+
         findViewById(R.id.bookmark_add_confirm).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                new DatabaseHandler(getApplicationContext()).addBookmark(
-                        new Bookmark(
-                                ((EditText) findViewById(R.id.bookmark_add_title))
-                                        .getText().toString(),
-                                ((EditText) findViewById(R.id.bookmark_add_url))
-                                        .getText().toString()
-                        )
-                );
+                DatabaseHandler dbHandler = new DatabaseHandler(getApplicationContext());
 
-                startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                if (getIntent().hasExtra(Bookmark.PARCEL)) {
+                    Bookmark bookmark = getIntent().getParcelableExtra(Bookmark.PARCEL);
+                    dbHandler.updateBookmark(new Bookmark(
+                            bookmark.getID(),
+                            ((EditText) findViewById(R.id.bookmark_add_title))
+                                    .getText().toString(),
+                            ((EditText) findViewById(R.id.bookmark_add_url))
+                                    .getText().toString(),
+                            bookmark.isSelected())
+                    );
+                } else {
+                    dbHandler.addBookmark(
+                            new Bookmark(
+                                    ((EditText) findViewById(R.id.bookmark_add_title))
+                                            .getText().toString(),
+                                    ((EditText) findViewById(R.id.bookmark_add_url))
+                                            .getText().toString()
+                            )
+                    );
+                }
+
+                Intent intent = new Intent();
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                setResult(RESULT_OK, intent);
+                finish();
             }
         });
     }

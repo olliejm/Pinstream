@@ -1,33 +1,44 @@
 <resources>
     <string name="app_name">Pinstream</string>
+
     <string name="title_activity_play">Now Playing</string>
-    <string name="title_activity_create">Add bookmark</string>
-    <string name="action_settings">Settings</string>
+    <string name="title_activity_create">Add Bookmark</string>
     <string name="title_activity_settings">Settings</string>
+
+    <string name="action_settings">Settings</string>
 
     <string name="list_item_title">Name</string>
 
     <string name="add_bookmark_name">Name</string>
     <string name="add_bookmark_url">URL</string>
 
-    <string name="play">play</string>
-    <string name="pause">pause</string>
-    <string name="stop">stop</string>
-    <string name="play_or_pause">play or pause</string>
-    <string name="placeholder_image_visualiser">placeholder image visualiser</string>
-    <string name="playing_source_title">Source title</string>
-    <string name="metadata_ticker">metadata ticker</string>
-    <string name="skip_next">skip next</string>
-    <string name="skip_previous">skip previous</string>
+    <string name="manage_bookmark_dialog">Edit or remove this bookmark?</string>
+    <string name="edit">Edit</string>
+    <string name="remove">Remove</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="playing_source_title">Source Title</string>
+
+    <string name="play_pause">Play / Pause</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+
+    <string name="placeholder_image_visualiser">Visualiser placeholder</string>
+
+    <string name="browser_connection_failed">MediaBrowser connection failed</string>
+
+    <string name="channel_name">Pinstream</string>
+    <string name="channel_description">Pinstream Media Notification</string>
 
     <!-- Strings related to Settings -->
 
     <string name="pref_header_general">General</string>
-    <string name="settings_theme_title">Dark theme</string>
-    <string name="settings_theme_summary">Use a dark theme</string>
-    <string name="settings_vis_title">Use visualiser</string>
-    <string name="settings_vis_summary">Display visualisation of audio</string>
-    <string name="channel_name">Pinstream</string>
-    <string name="channel_description">Pinstream media notification</string>
+
+    <string name="settings_night_title">Night Mode</string>
+    <string name="settings_night_summary">Automatically switch to dark theme at night</string>
+
+    <string name="settings_dark_title">Always-on Night Mode</string>
+    <string name="settings_dark_summary">Leave dark theme on permanently</string>
 
 </resources>

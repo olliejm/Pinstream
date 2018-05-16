@@ -14,10 +14,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 1;
 
     private static final String DATABASE_NAME = "bookmarksManager";
+
     private static final String TABLE_BOOKMARKS = "bookmarks";
+
     private static final String KEY_ID = "id";
     private static final String KEY_TITLE = "title";
     private static final String KEY_URL = "url";
+    private static final String KEY_SELECTED = "isSelected";
 
     public DatabaseHandler(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -29,8 +32,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 "CREATE TABLE " + TABLE_BOOKMARKS + "(" +
                         KEY_ID + " INTEGER PRIMARY KEY, " +
                         KEY_TITLE + " VARCHAR(255), " +
-                        KEY_URL + " VARCHAR(255))"
-        );
+                        KEY_URL + " VARCHAR(255), " +
+                        KEY_SELECTED + " INTEGER)");
     }
 
     @Override
@@ -43,6 +46,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(KEY_TITLE, bookmark.getTitle());
         values.put(KEY_URL, bookmark.getUrl());
+        values.put(KEY_SELECTED, bookmark.isSelected() ? 1 : 0);
 
         this.getWritableDatabase().insert(TABLE_BOOKMARKS, null, values);
     }
@@ -57,10 +61,11 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         if (cursor.moveToFirst()) {
             do {
                 bookmarkList.add(new Bookmark(
-                        Integer.parseInt(cursor.getString(0)),
+                        cursor.getInt(0),
                         cursor.getString(1),
-                        cursor.getString(2)
-                ));
+                        cursor.getString(2),
+                        cursor.getInt(3) == 1)
+                );
             } while (cursor.moveToNext());
         }
 
@@ -68,12 +73,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return bookmarkList;
     }
 
-    public int updateBookmark(Bookmark bookmark) {
+    public void updateBookmark(Bookmark bookmark) {
         ContentValues values = new ContentValues();
         values.put(KEY_TITLE, bookmark.getTitle());
         values.put(KEY_URL, bookmark.getUrl());
+        values.put(KEY_SELECTED, bookmark.isSelected());
 
-        return this.getWritableDatabase().update(
+        this.getWritableDatabase().update(
                 TABLE_BOOKMARKS,
                 values,
                 KEY_ID + " = ?",

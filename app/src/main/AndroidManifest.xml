@@ -6,6 +6,7 @@
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -43,17 +44,18 @@
         </activity>
 
         <activity
-            android:name=".activities.SettingsActivity"
-            android:label="@string/title_activity_settings"
-            android:parentActivityName=".activities.MainActivity">
+            android:name=".activities.PlayActivity"
+            android:label="@string/title_activity_play"
+            android:parentActivityName=".activities.MainActivity"
+            android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.ojm.pinstream.activities.MainActivity" />
         </activity>
 
         <activity
-            android:name=".activities.PlayActivity"
-            android:label="@string/title_activity_play"
+            android:name=".activities.SettingsActivity"
+            android:label="@string/title_activity_settings"
             android:parentActivityName=".activities.MainActivity"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data

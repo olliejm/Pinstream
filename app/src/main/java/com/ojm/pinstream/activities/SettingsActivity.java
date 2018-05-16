@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.CheckBoxPreference;
+import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.support.v7.app.ActionBar;
 import android.preference.PreferenceFragment;
@@ -104,6 +106,38 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_general);
             setHasOptionsMenu(true);
+
+            final CheckBoxPreference nightMode = (CheckBoxPreference) getPreferenceManager()
+                    .findPreference("night_mode");
+
+            final CheckBoxPreference darkMode = (CheckBoxPreference) getPreferenceManager()
+                    .findPreference("dark_mode");
+
+            assert nightMode != null;
+            assert darkMode != null;
+
+            if (nightMode.isChecked()) {
+                darkMode.setEnabled(true);
+            }
+
+            nightMode.setOnPreferenceClickListener(
+                    new CheckBoxPreference.OnPreferenceClickListener() {
+                        @Override
+                        public boolean onPreferenceClick(Preference preference) {
+                            if (darkMode.isChecked()) {
+                                nightMode.setChecked(true);
+                                return false;
+                            }
+
+                            if (darkMode.isEnabled()) {
+                                darkMode.setEnabled(false);
+                            } else {
+                                darkMode.setEnabled(true);
+                            }
+
+                            return true;
+                        }
+                    });
         }
 
         @Override

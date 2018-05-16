@@ -1,6 +1,8 @@
 package com.ojm.pinstream.activities;
 
 import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,8 +17,14 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.SeekBar;
+import android.widget.TextView;
 
+import com.cleveroad.audiovisualization.AudioVisualization;
+import com.cleveroad.audiovisualization.DbmHandler;
+import com.cleveroad.audiovisualization.VisualizerDbmHandler;
 import com.ojm.pinstream.R;
+import com.ojm.pinstream.models.Bookmark;
 import com.ojm.pinstream.services.StreamingService;
 
 import java.util.Objects;
@@ -25,6 +33,8 @@ public class PlayActivity extends AppCompatActivity {
 
     private MediaBrowserCompat mMediaBrowser;
     private ImageView mPlayPause;
+    private Bookmark mSelectedBookmark;
+    private AudioVisualization mAudioVisualization;
 
     private final MediaBrowserCompat.ConnectionCallback mConnectionCallback =
             new MediaBrowserCompat.ConnectionCallback() {
@@ -49,9 +59,7 @@ public class PlayActivity extends AppCompatActivity {
                     MediaControllerCompat.getMediaController(PlayActivity.this)
                             .getTransportControls()
                             .prepareFromUri(
-                                    Uri.parse(
-                                            getIntent()
-                                                    .getStringExtra(StreamingService.STREAM_URI)),
+                                    Uri.parse(mSelectedBookmark.getUrl()),
                                     getIntent().getExtras());
 
                     MediaControllerCompat.getMediaController(PlayActivity.this)
@@ -68,7 +76,9 @@ public class PlayActivity extends AppCompatActivity {
                 @Override
                 public void onConnectionFailed() {
                     Log.println(
-                            Log.ERROR, "Pinstream", "MediaBrowser connection failed");
+                            Log.ERROR,
+                            getResources().getString(R.string.app_name),
+                            getResources().getString(R.string.browser_connection_failed));
                 }
             };
 
@@ -84,17 +94,17 @@ public class PlayActivity extends AppCompatActivity {
                     assert state != null;
                     switch (state.getState()) {
                         case PlaybackStateCompat.STATE_STOPPED:
-                            finish();
+                            finishAndSendResult();
                             break;
                         case PlaybackStateCompat.STATE_PAUSED:
                             mPlayPause.setImageDrawable(
                                     getResources()
-                                            .getDrawable(R.drawable.ic_play_arrow_black_24px));
+                                            .getDrawable(R.drawable.ic_play_arrow));
                             break;
                         case PlaybackStateCompat.STATE_PLAYING:
                             mPlayPause.setImageDrawable(
                                     getResources()
-                                            .getDrawable(R.drawable.ic_pause_black_24px));
+                                            .getDrawable(R.drawable.ic_pause));
                             break;
                     }
                 }
@@ -103,7 +113,6 @@ public class PlayActivity extends AppCompatActivity {
 
     private void buildTransportControls() {
         mPlayPause = findViewById(R.id.play_pause);
-
         mPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -121,13 +130,35 @@ public class PlayActivity extends AppCompatActivity {
         });
 
         ImageView mStop = findViewById(R.id.stop);
-
         mStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 MediaControllerCompat.getMediaController(PlayActivity.this)
                         .getTransportControls().stop();
-                finish();
+
+                finishAndSendResult();
+            }
+        });
+
+        final AudioManager mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        SeekBar mVolumeControl = findViewById(R.id.volume_control);
+
+        assert mAudioManager != null;
+
+        mVolumeControl.setMax(mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        mVolumeControl.setProgress(mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC));
+        mVolumeControl.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+        {
+            @Override
+            public void onStopTrackingTouch(SeekBar arg0) { }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar arg0) { }
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC,
+                        progress, 0);
             }
         });
     }
@@ -139,10 +170,23 @@ public class PlayActivity extends AppCompatActivity {
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
 
+        mSelectedBookmark = getIntent().getParcelableExtra(Bookmark.PARCEL);
+
+        TextView title = findViewById(R.id.playing_source_title);
+        title.setText(mSelectedBookmark.getTitle());
+
         mMediaBrowser = new MediaBrowserCompat(this,
                 new ComponentName(this, StreamingService.class),
                 mConnectionCallback,
                 null);
+
+        mAudioVisualization = findViewById(R.id.visualizer_view);
+
+        VisualizerDbmHandler visualizerHandler
+                = DbmHandler.Factory
+                .newVisualizerHandler(getApplicationContext(), 0);
+
+        mAudioVisualization.linkTo(visualizerHandler);
     }
 
     @Override
@@ -154,16 +198,37 @@ public class PlayActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        mAudioVisualization.onResume();
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
+    public void onPause() {
+        mAudioVisualization.onPause();
+        super.onPause();
+    }
 
+    @Override
+    public void onStop() {
         mMediaBrowser.disconnect();
+
         MediaControllerCompat.getMediaController(PlayActivity.this)
                 .unregisterCallback(mControllerCallback);
+
+        super.onStop();
+    }
+
+    @Override
+    public void onDestroy() {
+        mAudioVisualization.release();
+        super.onDestroy();
+    }
+
+    private void finishAndSendResult() {
+        Intent intent = new Intent();
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        setResult(RESULT_OK, intent);
+        finish();
     }
 
 }

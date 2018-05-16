@@ -32,7 +32,7 @@
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="16dp"
                     android:background="@android:color/transparent"
-                    android:drawableStart="@drawable/ic_check_white_24px"
+                    android:drawableStart="@drawable/ic_check_white"
                     android:gravity="end|center_horizontal" />
             </RelativeLayout>
         </android.support.v7.widget.Toolbar>

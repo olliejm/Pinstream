@@ -13,17 +13,26 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <ImageView
-            android:id="@+id/cover_image"
+        <com.cleveroad.audiovisualization.GLAudioVisualizationView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/visualizer_view"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginBottom="8dp"
             android:adjustViewBounds="true"
             android:contentDescription="@string/placeholder_image_visualiser"
             android:scaleType="fitCenter"
+            app:av_backgroundColor="#993d86"
+            app:av_bubblesPerLayer="16"
+            app:av_bubblesRandomizeSizes="true"
+            app:av_bubblesSize="25dp"
+            app:av_layersCount="4"
+            app:av_wavesCount="7"
+            app:av_wavesFooterHeight="170dp"
+            app:av_wavesHeight="60dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintDimensionRatio="1:1"
-            app:srcCompat="@android:color/holo_orange_dark" />
+            app:layout_constraintDimensionRatio="1:1" />
 
     </android.support.constraint.ConstraintLayout>
 
@@ -40,10 +49,6 @@
         app:layout_constraintTop_toBottomOf="@+id/constraintLayout"
         app:layout_constraintVertical_bias="0.571">
 
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="8dp" />
-
         <TextView
             android:id="@+id/playing_source_title"
             android:layout_width="wrap_content"
@@ -53,7 +58,7 @@
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="8dp"
+            android:layout_height="16dp"
             android:layout_weight="1" />
 
         <LinearLayout
@@ -76,20 +81,20 @@
             <ImageView
                 android:id="@+id/play_pause"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_height="40dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_weight="1"
                 android:background="@null"
-                android:contentDescription="@string/play_or_pause"
-                app:srcCompat="@drawable/ic_play_arrow_black_24px" />
+                android:contentDescription="@string/play_pause"
+                app:srcCompat="@drawable/ic_play_arrow" />
 
             <ImageView
                 android:id="@+id/stop"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="40dp"
                 android:layout_weight="1"
-                app:srcCompat="@drawable/ic_baseline_stop_black_24px"
-                android:contentDescription="@string/stop" />
+                android:contentDescription="@string/stop"
+                app:srcCompat="@drawable/ic_baseline_stop" />
 
             <!--<ImageButton
                 android:id="@+id/skip_next"
@@ -105,7 +110,7 @@
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="8dp"
+            android:layout_height="16dp"
             android:layout_weight="1" />
 
         <SeekBar
@@ -116,11 +121,7 @@
             android:layout_marginLeft="32dp"
             android:layout_marginRight="32dp" />
 
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="8dp" />
-
-       <!-- <TextView
+        <!-- <TextView
             android:id="@+id/meta_ticker"
             android:layout_width="match_parent"
             android:layout_height="32dp"

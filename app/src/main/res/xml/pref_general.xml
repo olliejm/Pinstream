@@ -1,15 +1,16 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <CheckBoxPreference
-        android:key="dark_theme"
-        android:title="@string/settings_theme_title"
-        android:summary="@string/settings_theme_summary"
+        android:key="night_mode"
+        android:title="@string/settings_night_title"
+        android:summary="@string/settings_night_summary"
         android:defaultValue="false" />
 
     <CheckBoxPreference
-        android:key="use_visualiser"
-        android:title="@string/settings_vis_title"
-        android:summary="@string/settings_vis_summary"
-        android:defaultValue="true" />
+        android:key="dark_mode"
+        android:title="@string/settings_dark_title"
+        android:summary="@string/settings_dark_summary"
+        android:defaultValue="false"
+        android:enabled="false" />
 
 </PreferenceScreen>
