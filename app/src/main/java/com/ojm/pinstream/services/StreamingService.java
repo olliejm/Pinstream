@@ -56,7 +56,104 @@ public class StreamingService extends MediaBrowserServiceCompat {
     private static final String NOTIFICATION_CHANNEL = "1337";
     private static final int NOTIFICATION_ID = 1338;
 
-    private AudioManager.OnAudioFocusChangeListener mOnAudioFocusChangeListener =
+    private final IntentFilter mAudioNoisyIntentFilter =
+            new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+
+    private final BroadcastReceiver mAudioNoisyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mMediaSession.getController().getTransportControls().pause();
+        }
+    };
+
+    private final MediaSessionCompat.Callback mMediaSessionCallback =
+            new MediaSessionCompat.Callback() {
+                @Override
+                public void onPlay() {
+                    switch (mAudioManager.requestAudioFocus(
+                            mOnAudioFocusChangeListener,
+                            AudioManager.STREAM_MUSIC,
+                            AudioManager.AUDIOFOCUS_GAIN
+                    )) {
+                        case AudioManager.AUDIOFOCUS_REQUEST_GRANTED:
+                            mCurrentAudioFocusState = AUDIO_FOCUSED;
+                            registerAudioNoisyReceiver();
+
+                            mWifiLock.acquire();
+                            mExoPlayer.setPlayWhenReady(true);
+
+                            mPlaybackStateBuilder
+                                    .setState(
+                                            PlaybackStateCompat.STATE_PLAYING,
+                                            0,
+                                            0);
+
+                            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+                            mMediaSession.setActive(true);
+
+                            configureServiceState(PlaybackStateCompat.ACTION_PLAY);
+                            break;
+                        default:
+                            configureServiceState(PlaybackStateCompat.ACTION_STOP);
+                            break;
+                    }
+                }
+
+                @Override
+                public void onPause() {
+                    unregisterAudioNoisyReceiver();
+
+                    if (mWifiLock.isHeld()) mWifiLock.release();
+
+                    mExoPlayer.setPlayWhenReady(false);
+
+                    mPlaybackStateBuilder
+                            .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0);
+
+                    mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+
+                    configureServiceState(PlaybackStateCompat.ACTION_PAUSE);
+                }
+
+                @Override
+                public void onStop() {
+                    unregisterAudioNoisyReceiver();
+
+                    if (mWifiLock.isHeld()) mWifiLock.release();
+
+                    mExoPlayer.stop();
+
+                    mPlaybackStateBuilder.setState(
+                            PlaybackStateCompat.STATE_STOPPED,
+                            0,
+                            0);
+
+                    mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+
+                    configureServiceState(PlaybackStateCompat.ACTION_STOP);
+                }
+
+                @Override
+                public void onPrepareFromUri(Uri uri, Bundle extras) {
+                    MediaSource mediaSource = new ExtractorMediaSource.Factory(
+                            new DefaultHttpDataSourceFactory(
+                                    getResources().getString(R.string.app_name)))
+                            .createMediaSource(uri);
+
+                    extras.setClassLoader(Bookmark.class.getClassLoader());
+                    mSelectedBookmark = extras.getParcelable(Bookmark.PARCEL);
+
+                    Bundle idBundle = new Bundle();
+                    idBundle.putInt(Bookmark.ID, mSelectedBookmark.getID());
+
+                    mPlaybackStateBuilder.setExtras(idBundle);
+                    mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+
+                    mExoPlayer.prepare(mediaSource);
+                }
+            };
+
+    private final AudioManager.OnAudioFocusChangeListener mOnAudioFocusChangeListener =
             new AudioManager.OnAudioFocusChangeListener() {
                 @Override
                 public void onAudioFocusChange(int focusChange) {
@@ -77,27 +174,16 @@ public class StreamingService extends MediaBrowserServiceCompat {
                 }
             };
 
-    private final IntentFilter mAudioNoisyIntentFilter =
-            new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
-
-    private BroadcastReceiver mAudioNoisyReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            mMediaSession.getController().getTransportControls().pause();
-        }
-    };
-
     private boolean mAudioNoisyReceiverRegistered = false;
-    private boolean mServiceInStartedState = false;
     private int mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
+    private boolean mServiceInStartedState = false;
 
     private AudioManager mAudioManager;
+    private SimpleExoPlayer mExoPlayer;
     private MediaSessionCompat mMediaSession;
     private PlaybackStateCompat.Builder mPlaybackStateBuilder;
-    private SimpleExoPlayer mExoPlayer;
-    private WifiManager.WifiLock mWifiLock;
-
     private Bookmark mSelectedBookmark;
+    private WifiManager.WifiLock mWifiLock;
 
     @Nullable
     @Override
@@ -131,7 +217,7 @@ public class StreamingService extends MediaBrowserServiceCompat {
 
         mMediaSession = new MediaSessionCompat(this, getResources().getString(R.string.app_name));
 
-        mMediaSession.setCallback(new MediaSessionCallback());
+        mMediaSession.setCallback(mMediaSessionCallback);
 
         mMediaSession.setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
@@ -174,159 +260,6 @@ public class StreamingService extends MediaBrowserServiceCompat {
         unregisterAudioNoisyReceiver();
 
         super.onDestroy();
-    }
-
-    public class MediaSessionCallback extends MediaSessionCompat.Callback {
-        @Override
-        public void onPlay() {
-            switch (mAudioManager.requestAudioFocus(
-                    mOnAudioFocusChangeListener,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN
-            )) {
-                case AudioManager.AUDIOFOCUS_REQUEST_GRANTED:
-                    mCurrentAudioFocusState = AUDIO_FOCUSED;
-                    registerAudioNoisyReceiver();
-
-                    mWifiLock.acquire();
-                    mExoPlayer.setPlayWhenReady(true);
-
-                    mPlaybackStateBuilder
-                            .setState(
-                                    PlaybackStateCompat.STATE_PLAYING,
-                                    0,
-                                    0);
-
-                    mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
-                    mMediaSession.setActive(true);
-
-                    configureServiceState(PlaybackStateCompat.ACTION_PLAY);
-                    break;
-                default:
-                    configureServiceState(PlaybackStateCompat.ACTION_STOP);
-                    break;
-            }
-        }
-
-        @Override
-        public void onPause() {
-            unregisterAudioNoisyReceiver();
-
-            if (mWifiLock.isHeld()) mWifiLock.release();
-
-            mExoPlayer.setPlayWhenReady(false);
-
-            mPlaybackStateBuilder
-                    .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0);
-
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
-
-            configureServiceState(PlaybackStateCompat.ACTION_PAUSE);
-        }
-
-        @Override
-        public void onStop() {
-            unregisterAudioNoisyReceiver();
-
-            if (mWifiLock.isHeld()) mWifiLock.release();
-
-            mExoPlayer.stop();
-
-            mPlaybackStateBuilder.setState(
-                    PlaybackStateCompat.STATE_STOPPED,
-                    0,
-                    0);
-
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
-
-            configureServiceState(PlaybackStateCompat.ACTION_STOP);
-        }
-
-        @Override
-        public void onPrepareFromUri(Uri uri, Bundle extras) {
-            MediaSource mediaSource = new ExtractorMediaSource.Factory(
-                    new DefaultHttpDataSourceFactory(
-                            getResources().getString(R.string.app_name)))
-                    .createMediaSource(uri);
-
-            extras.setClassLoader(Bookmark.class.getClassLoader());
-            mSelectedBookmark = extras.getParcelable(Bookmark.PARCEL);
-
-            Bundle idBundle = new Bundle();
-            idBundle.putInt(Bookmark.ID, mSelectedBookmark.getID());
-
-            mPlaybackStateBuilder.setExtras(idBundle);
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
-
-            mExoPlayer.prepare(mediaSource);
-        }
-    }
-
-    private void configurePlayerState() {
-        switch (mCurrentAudioFocusState) {
-            case AUDIO_NO_FOCUS_CAN_DUCK:
-                mExoPlayer.setVolume(VOLUME_DUCK);
-                break;
-            case AUDIO_NO_FOCUS_NO_DUCK:
-                mMediaSession.getController().getTransportControls().pause();
-                break;
-            case AUDIO_NO_FOCUS_LOST:
-                mMediaSession.getController().getTransportControls().stop();
-                break;
-            case AUDIO_FOCUSED:
-                mExoPlayer.setVolume(VOLUME_NORMAL);
-                break;
-        }
-    }
-
-    private void registerAudioNoisyReceiver() {
-        if (!mAudioNoisyReceiverRegistered) {
-            this.registerReceiver(mAudioNoisyReceiver, mAudioNoisyIntentFilter);
-            mAudioNoisyReceiverRegistered = true;
-        }
-    }
-
-    private void unregisterAudioNoisyReceiver() {
-        if (mAudioNoisyReceiverRegistered) {
-            this.unregisterReceiver(mAudioNoisyReceiver);
-            mAudioNoisyReceiverRegistered = false;
-        }
-    }
-
-    private void configureServiceState(long action) {
-        if (action == PlaybackStateCompat.ACTION_PLAY) {
-            if (!mServiceInStartedState) {
-                ContextCompat.startForegroundService(
-                        StreamingService.this,
-                        new Intent(
-                                StreamingService.this,
-                                StreamingService.class));
-                mServiceInStartedState = true;
-            }
-
-            startForeground(
-                    NOTIFICATION_ID,
-                    buildNotification(PlaybackStateCompat.ACTION_PAUSE));
-        } else if (action == PlaybackStateCompat.ACTION_PAUSE) {
-            stopForeground(false);
-
-            NotificationManager mNotificationManager
-                    = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-            assert mNotificationManager != null;
-            mNotificationManager.notify(
-                            NOTIFICATION_ID,
-                            buildNotification(PlaybackStateCompat.ACTION_PLAY));
-        } else if (action == PlaybackStateCompat.ACTION_STOP) {
-            mServiceInStartedState = false;
-            mMediaSession.setActive(false);
-
-            mSelectedBookmark.setSelected(false);
-            new DatabaseHandler(getApplicationContext()).updateBookmark(mSelectedBookmark);
-
-            stopForeground(true);
-            stopSelf();
-        }
     }
 
     private Notification buildNotification(long action) {
@@ -375,6 +308,59 @@ public class StreamingService extends MediaBrowserServiceCompat {
         return builder.build();
     }
 
+    private void configurePlayerState() {
+        switch (mCurrentAudioFocusState) {
+            case AUDIO_NO_FOCUS_CAN_DUCK:
+                mExoPlayer.setVolume(VOLUME_DUCK);
+                break;
+            case AUDIO_NO_FOCUS_NO_DUCK:
+                mMediaSession.getController().getTransportControls().pause();
+                break;
+            case AUDIO_NO_FOCUS_LOST:
+                mMediaSession.getController().getTransportControls().stop();
+                break;
+            case AUDIO_FOCUSED:
+                mExoPlayer.setVolume(VOLUME_NORMAL);
+                break;
+        }
+    }
+
+    private void configureServiceState(long action) {
+        if (action == PlaybackStateCompat.ACTION_PLAY) {
+            if (!mServiceInStartedState) {
+                ContextCompat.startForegroundService(
+                        StreamingService.this,
+                        new Intent(
+                                StreamingService.this,
+                                StreamingService.class));
+                mServiceInStartedState = true;
+            }
+
+            startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(PlaybackStateCompat.ACTION_PAUSE));
+        } else if (action == PlaybackStateCompat.ACTION_PAUSE) {
+            stopForeground(false);
+
+            NotificationManager mNotificationManager
+                    = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+            assert mNotificationManager != null;
+            mNotificationManager.notify(
+                    NOTIFICATION_ID,
+                    buildNotification(PlaybackStateCompat.ACTION_PLAY));
+        } else if (action == PlaybackStateCompat.ACTION_STOP) {
+            mServiceInStartedState = false;
+            mMediaSession.setActive(false);
+
+            mSelectedBookmark.setSelected(false);
+            new DatabaseHandler(getApplicationContext()).updateBookmark(mSelectedBookmark);
+
+            stopForeground(true);
+            stopSelf();
+        }
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = getString(R.string.channel_name);
@@ -390,6 +376,20 @@ public class StreamingService extends MediaBrowserServiceCompat {
 
             assert notificationManager != null;
             notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private void registerAudioNoisyReceiver() {
+        if (!mAudioNoisyReceiverRegistered) {
+            this.registerReceiver(mAudioNoisyReceiver, mAudioNoisyIntentFilter);
+            mAudioNoisyReceiverRegistered = true;
+        }
+    }
+
+    private void unregisterAudioNoisyReceiver() {
+        if (mAudioNoisyReceiverRegistered) {
+            this.unregisterReceiver(mAudioNoisyReceiver);
+            mAudioNoisyReceiverRegistered = false;
         }
     }
 

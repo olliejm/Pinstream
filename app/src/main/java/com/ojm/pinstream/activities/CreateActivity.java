@@ -57,6 +57,8 @@ public class CreateActivity extends AppCompatActivity {
                     );
                 }
 
+                dbHandler.close();
+
                 Intent intent = new Intent();
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 setResult(RESULT_OK, intent);

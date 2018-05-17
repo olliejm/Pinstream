@@ -128,16 +128,16 @@ public class PlayActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onPause() {
+        mAudioVisualization.onPause();
+        super.onPause();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         mAudioVisualization.onResume();
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
-    }
-
-    @Override
-    public void onPause() {
-        mAudioVisualization.onPause();
-        super.onPause();
     }
 
     @Override

@@ -99,6 +99,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onDestroy() {
+        dbHandler.close();
+        super.onDestroy();
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
@@ -132,24 +138,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void configureTheme() {
-        SharedPreferences preferences
-                = PreferenceManager.getDefaultSharedPreferences(this);
-
-        if (preferences.getBoolean("night_mode",true)) {
-            if (preferences.getBoolean("dark_mode", true)) {
-                AppCompatDelegate.
-                        setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-            } else {
-                AppCompatDelegate.
-                        setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_AUTO);
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_AUDIO_PERMISSION: {
+                if (grantResults.length > 0 &&
+                        grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                    finish();
+                }
             }
-        } else if (preferences.getBoolean("night_mode", false)) {
-            AppCompatDelegate
-                    .setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-        } else {
-            AppCompatDelegate
-                    .setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         }
     }
 
@@ -185,17 +184,24 @@ public class MainActivity extends AppCompatActivity {
         return builder.create();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String permissions[],
-                                           @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case REQUEST_AUDIO_PERMISSION: {
-                if (grantResults.length > 0 &&
-                        grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                    finish();
-                }
+    private void configureTheme() {
+        SharedPreferences preferences
+                = PreferenceManager.getDefaultSharedPreferences(this);
+
+        if (preferences.getBoolean("night_mode",true)) {
+            if (preferences.getBoolean("dark_mode", true)) {
+                AppCompatDelegate.
+                        setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+            } else {
+                AppCompatDelegate.
+                        setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_AUTO);
             }
+        } else if (preferences.getBoolean("night_mode", false)) {
+            AppCompatDelegate
+                    .setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        } else {
+            AppCompatDelegate
+                    .setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         }
     }
 
