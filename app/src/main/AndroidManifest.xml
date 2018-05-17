@@ -47,7 +47,8 @@
             android:name=".activities.PlayActivity"
             android:label="@string/title_activity_play"
             android:parentActivityName=".activities.MainActivity"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/AppTheme.NoActionBar"
+            android:launchMode="singleTop">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.ojm.pinstream.activities.MainActivity" />

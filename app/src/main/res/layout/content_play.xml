@@ -54,7 +54,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:text="@string/playing_source_title" />
+            android:text="@string/playing_source_title"
+            android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
         <Space
             android:layout_width="match_parent"
@@ -67,16 +68,6 @@
             android:layout_marginLeft="64dp"
             android:layout_marginRight="64dp"
             android:orientation="horizontal">
-
-            <!--<ImageButton
-                android:id="@+id/skip_prev"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:background="@null"
-                android:contentDescription="@string/skip_previous"
-                app:srcCompat="@drawable/ic_skip_previous_black_24px" />-->
 
             <ImageView
                 android:id="@+id/play_pause"
@@ -96,16 +87,6 @@
                 android:contentDescription="@string/stop"
                 app:srcCompat="@drawable/ic_baseline_stop" />
 
-            <!--<ImageButton
-                android:id="@+id/skip_next"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:background="@null"
-                android:contentDescription="@string/skip_next"
-                app:srcCompat="@drawable/ic_skip_next_black_24px" />-->
-
         </LinearLayout>
 
         <Space
@@ -120,23 +101,6 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginLeft="32dp"
             android:layout_marginRight="32dp" />
-
-        <!-- <TextView
-            android:id="@+id/meta_ticker"
-            android:layout_width="match_parent"
-            android:layout_height="32dp"
-            android:background="@android:color/background_light"
-            android:elevation="22dp"
-            android:ellipsize="marquee"
-            android:fadingEdge="horizontal"
-            android:gravity="center_vertical"
-            android:marqueeRepeatLimit="marquee_forever"
-            android:paddingLeft="8dp"
-            android:paddingRight="8dp"
-            android:text="@string/metadata_ticker"
-            android:textAlignment="center"
-            android:textColor="@android:color/black"
-            android:textSize="18sp" />-->
 
     </LinearLayout>
 

@@ -5,6 +5,7 @@ import android.os.Parcelable;
 
 public class Bookmark implements Parcelable {
     public static final String PARCEL = "BOOKMARK_PARCEL";
+    public static final String ID = "BOOKMARK_ID";
 
     public static final Parcelable.Creator CREATOR = new Parcelable.Creator() {
         public Bookmark createFromParcel(Parcel in) {

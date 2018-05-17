@@ -43,8 +43,6 @@ import java.util.Objects;
 
 public class StreamingService extends MediaBrowserServiceCompat {
 
-    public static final String AUDIO_SESSION_ID = "AUDIO_SESSION_ID";
-
     public static final float VOLUME_DUCK = 0.2f;
     public static final float VOLUME_NORMAL = 1.0f;
 
@@ -103,14 +101,15 @@ public class StreamingService extends MediaBrowserServiceCompat {
 
     @Nullable
     @Override
-    public BrowserRoot onGetRoot
-            (@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+    public BrowserRoot onGetRoot(@NonNull String clientPackageName,
+                                 int clientUid,
+                                 @Nullable Bundle rootHints) {
         return new BrowserRoot(EMPTY_MEDIA_ROOT_ID, null);
     }
 
     @Override
-    public void onLoadChildren
-            (@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+    public void onLoadChildren(@NonNull String parentId,
+                               @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
         if (TextUtils.equals(EMPTY_MEDIA_ROOT_ID, parentId)) result.sendResult(null);
     }
 
@@ -130,8 +129,7 @@ public class StreamingService extends MediaBrowserServiceCompat {
 
         mExoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector);
 
-        mMediaSession = new MediaSessionCompat(
-                this, getResources().getString(R.string.app_name));
+        mMediaSession = new MediaSessionCompat(this, getResources().getString(R.string.app_name));
 
         mMediaSession.setCallback(new MediaSessionCallback());
 
@@ -140,7 +138,7 @@ public class StreamingService extends MediaBrowserServiceCompat {
                         | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
         mPlaybackStateBuilder = new PlaybackStateCompat.Builder()
-                .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0)
+                .setState(PlaybackStateCompat.STATE_NONE, 0, 0)
                 .setActions(
                         PlaybackStateCompat.ACTION_PREPARE_FROM_URI |
                                 PlaybackStateCompat.ACTION_PLAY_PAUSE |
@@ -169,6 +167,8 @@ public class StreamingService extends MediaBrowserServiceCompat {
         new DatabaseHandler(getApplicationContext())
                 .updateBookmark(mSelectedBookmark);
 
+        if (mWifiLock.isHeld()) mWifiLock.release();
+
         mExoPlayer.release();
         mMediaSession.release();
         unregisterAudioNoisyReceiver();
@@ -195,12 +195,7 @@ public class StreamingService extends MediaBrowserServiceCompat {
                             .setState(
                                     PlaybackStateCompat.STATE_PLAYING,
                                     0,
-                                    0
-                            );
-
-                    Bundle audioSessionId = new Bundle();
-                    audioSessionId.putInt(AUDIO_SESSION_ID, mExoPlayer.getAudioSessionId());
-                    mPlaybackStateBuilder.setExtras(audioSessionId);
+                                    0);
 
                     mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
                     mMediaSession.setActive(true);
@@ -216,7 +211,8 @@ public class StreamingService extends MediaBrowserServiceCompat {
         @Override
         public void onPause() {
             unregisterAudioNoisyReceiver();
-            mWifiLock.release();
+
+            if (mWifiLock.isHeld()) mWifiLock.release();
 
             mExoPlayer.setPlayWhenReady(false);
 
@@ -237,7 +233,9 @@ public class StreamingService extends MediaBrowserServiceCompat {
             mExoPlayer.stop();
 
             mPlaybackStateBuilder.setState(
-                    PlaybackStateCompat.STATE_STOPPED, 0,0);
+                    PlaybackStateCompat.STATE_STOPPED,
+                    0,
+                    0);
 
             mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
 
@@ -253,6 +251,12 @@ public class StreamingService extends MediaBrowserServiceCompat {
 
             extras.setClassLoader(Bookmark.class.getClassLoader());
             mSelectedBookmark = extras.getParcelable(Bookmark.PARCEL);
+
+            Bundle idBundle = new Bundle();
+            idBundle.putInt(Bookmark.ID, mSelectedBookmark.getID());
+
+            mPlaybackStateBuilder.setExtras(idBundle);
+            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
 
             mExoPlayer.prepare(mediaSource);
         }
@@ -298,7 +302,10 @@ public class StreamingService extends MediaBrowserServiceCompat {
                                 StreamingService.this,
                                 StreamingService.class));
                 mServiceInStartedState = true;
-            } startForeground(NOTIFICATION_ID,
+            }
+
+            startForeground(
+                    NOTIFICATION_ID,
                     buildNotification(PlaybackStateCompat.ACTION_PAUSE));
         } else if (action == PlaybackStateCompat.ACTION_PAUSE) {
             stopForeground(false);
@@ -307,16 +314,15 @@ public class StreamingService extends MediaBrowserServiceCompat {
                     = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
             assert mNotificationManager != null;
-            mNotificationManager
-                    .notify(NOTIFICATION_ID,
+            mNotificationManager.notify(
+                            NOTIFICATION_ID,
                             buildNotification(PlaybackStateCompat.ACTION_PLAY));
         } else if (action == PlaybackStateCompat.ACTION_STOP) {
             mServiceInStartedState = false;
             mMediaSession.setActive(false);
 
             mSelectedBookmark.setSelected(false);
-            new DatabaseHandler(getApplicationContext())
-                    .updateBookmark(mSelectedBookmark);
+            new DatabaseHandler(getApplicationContext()).updateBookmark(mSelectedBookmark);
 
             stopForeground(true);
             stopSelf();
@@ -338,7 +344,7 @@ public class StreamingService extends MediaBrowserServiceCompat {
                                 this, PlaybackStateCompat.ACTION_STOP));
 
         builder
-                .setSmallIcon(R.drawable.ic_play_arrow);
+                .setSmallIcon(R.drawable.ic_stat_name);
 
 
         if (action == PlaybackStateCompat.ACTION_PLAY) {
