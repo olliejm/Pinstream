@@ -21,6 +21,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
+        <!-- Text entry box for bookmark title -->
         <EditText
             android:id="@+id/bookmark_add_title"
             android:layout_width="match_parent"
@@ -29,6 +30,7 @@
             android:inputType="textCapWords"
             android:hint="@string/add_bookmark_name" />
 
+        <!-- Text entry box for bookmark URL -->
         <EditText
             android:id="@+id/bookmark_add_url"
             android:layout_width="match_parent"

@@ -8,6 +8,7 @@
     tools:context=".activities.MainActivity"
     tools:showIn="@layout/activity_main">
 
+    <!-- List view to display bookmarks -->
     <ListView
         android:id="@+id/bookmark_list_view"
         android:layout_width="match_parent"

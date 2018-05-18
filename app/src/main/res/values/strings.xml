@@ -1,4 +1,5 @@
 <resources>
+    <!-- App related strings -->
     <string name="app_name">Pinstream</string>
 
     <string name="title_activity_play">Now Playing</string>
@@ -7,6 +8,7 @@
 
     <string name="action_settings">Settings</string>
 
+    <!-- Bookmark list, edit and creation strings -->
     <string name="list_item_title">Name</string>
 
     <string name="add_bookmark_name">Name</string>
@@ -17,6 +19,7 @@
     <string name="remove">Remove</string>
     <string name="cancel">Cancel</string>
 
+    <!-- Playback view strings -->
     <string name="playing_source_title">Source Title</string>
 
     <string name="play_pause">Play / Pause</string>
@@ -28,17 +31,21 @@
 
     <string name="browser_connection_failed">MediaBrowser connection failed</string>
 
+    <!-- Notification strings -->
     <string name="channel_name">Pinstream</string>
     <string name="channel_description">Pinstream Media Notification</string>
 
     <!-- Strings related to Settings -->
-
     <string name="pref_header_general">General</string>
 
     <string name="settings_night_title">Night Mode</string>
-    <string name="settings_night_summary">Automatically switch to dark theme at night</string>
+    <string name="settings_night_summary">
+        Automatically switch to dark theme at night (requires restart)
+    </string>
 
     <string name="settings_dark_title">Always-on Night Mode</string>
-    <string name="settings_dark_summary">Leave dark theme on permanently</string>
+    <string name="settings_dark_summary"
+        >Leave dark theme on permanently (requires restart)
+    </string>
 
 </resources>

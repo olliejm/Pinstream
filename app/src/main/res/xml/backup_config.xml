@@ -1,3 +1,4 @@
+<!-- Instruct Android to back up database and preferences -->
 <full-backup-content>
     <include domain="database"
         path="." />

@@ -8,11 +8,13 @@
     tools:context=".activities.PlayActivity"
     tools:showIn="@layout/activity_play">
 
+    <!-- Use constraint layout to keep visualiser square -->
     <android.support.constraint.ConstraintLayout
         android:id="@+id/constraintLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <!-- Visualiser settings -->
         <com.cleveroad.audiovisualization.GLAudioVisualizationView
             xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -49,6 +51,7 @@
         app:layout_constraintTop_toBottomOf="@+id/constraintLayout"
         app:layout_constraintVertical_bias="0.571">
 
+        <!-- Source title -->
         <TextView
             android:id="@+id/playing_source_title"
             android:layout_width="wrap_content"
@@ -62,6 +65,7 @@
             android:layout_height="16dp"
             android:layout_weight="1" />
 
+        <!-- Layout containing transport controls -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -94,6 +98,7 @@
             android:layout_height="16dp"
             android:layout_weight="1" />
 
+        <!-- Volume controller -->
         <SeekBar
             android:id="@+id/volume_control"
             android:layout_width="match_parent"

@@ -21,6 +21,4 @@
 
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
 
-    <style name="Theme.Pinstream.DayNight.DarkActionBar" parent="Theme.AppCompat.DayNight.DarkActionBar" />
-
 </resources>
