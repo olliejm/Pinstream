@@ -10,6 +10,9 @@ you to play/pause and stop the stream. It should also respond to
 input from external devices such as Android wear, though this
 functionality is not yet tested.
 
+![alt text](https://i.imgur.com/Zn2qn6m.png "Now Playing")
+![alt text](https://i.imgur.com/jXwptlu.png "Boomark list")
+
 To-do:
 - Parse the stream for metadata for display in-app and in the 
 notification, along with artwork retrieval
