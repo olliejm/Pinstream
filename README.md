@@ -21,5 +21,3 @@ you have saved
 - Ability to drag the list items into a preferred order
 - Swipe an item to the left to display delete/edit options
 rather than display dialog
-- Fix bug where app crashes if stream is stopped from the
-notification while the phone is unlocked
